@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "uproc.h"
-
 #include <asm/atomic.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -17,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
+#include "uproc.h"
 
 #define USERPROC_DEVNAME "userproc"
 

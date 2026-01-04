@@ -89,10 +89,42 @@ static void *worker_thread(void *arg) {
             sb.pu8Buf = malloc(sb.u32Size);
             USERPROC_CMD_FN fn = (USERPROC_CMD_FN)info.stEntry.pfnCmdFunc;
             if (fn) {
-                if (fn(&sb, 0, NULL, info.stEntry.pPrivData) == 0 && sb.u32Size && sb.pu8Buf) {
-                    USERPROC_SHOW_BUFFER_S send = {sb.pu8Buf, sb.u32Size, 0};
-                    ioctl(g_fd, USERPROCIOC_WAKE_READ_TASK, &send);
+                /* parse info.stCmd.aszCmd into argc/argv */
+                char *cmdbuf = NULL;
+                char *saveptr = NULL;
+                char *argv_local[64];
+                uint32_t local_argc = 0;
+
+                if (info.stCmd.aszCmd[0] != '\0') {
+                    cmdbuf = strdup(info.stCmd.aszCmd);
+                    if (cmdbuf) {
+                        char *tok = strtok_r(cmdbuf, " \t\n", &saveptr);
+                        while (tok && local_argc < (sizeof(argv_local) / sizeof(argv_local[0]))) {
+                            argv_local[local_argc++] = tok;
+                            tok = strtok_r(NULL, " \t\n", &saveptr);
+                        }
+                    }
                 }
+
+                uint8_t **argv_to_pass = NULL;
+                if (local_argc > 0) {
+                    argv_to_pass = calloc(local_argc, sizeof(uint8_t *));
+                    if (argv_to_pass) {
+                        for (uint32_t i = 0; i < local_argc; ++i)
+                            argv_to_pass[i] = (uint8_t *)argv_local[i];
+                    }
+                }
+
+                if (fn(&sb, local_argc, argv_to_pass, info.stEntry.pPrivData) == 0 && sb.u32Offset && sb.pu8Buf) {
+                    USERPROC_SHOW_BUFFER_S send = {sb.pu8Buf, sb.u32Offset, 0};
+                    /* wake the write waiter so the writer syscall can complete */
+                    if (ioctl(g_fd, USERPROCIOC_WAKE_WRITE_TASK, &send) != 0) {
+                        perror("USERPROCIOC_WAKE_WRITE_TASK");
+                    }
+                }
+
+                free(cmdbuf);
+                free(argv_to_pass);
             }
             free(sb.pu8Buf);
         }

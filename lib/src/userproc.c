@@ -256,6 +256,12 @@ int userproc_printf(void *showBuffer, const char *fmt, ...) {
     if (n < 0) {
         return -1;
     }
-    sb->u32Offset += n;
+    size_t written = (size_t)n;
+    size_t avail = sb->u32Size > sb->u32Offset ? sb->u32Size - sb->u32Offset : 0;
+    if (written >= avail) {
+        sb->u32Offset = sb->u32Size;
+    } else {
+        sb->u32Offset += written;
+    }
     return 0;
 }

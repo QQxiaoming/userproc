@@ -17,17 +17,18 @@
 #include <linux/version.h>
 #include "uproc.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+#define USERPROC_PDE_DATA(inode) pde_data(inode)
+#else
+#define USERPROC_PDE_DATA(inode) PDE_DATA(inode)
+#endif
+
 #define USERPROC_DEVNAME "userproc"
 
 #define USERPROC_FATAL(fmt, ...) pr_err("USERPROC: " fmt, ##__VA_ARGS__)
 #define USERPROC_ERR(fmt, ...)   pr_err("USERPROC: " fmt, ##__VA_ARGS__)
 #define USERPROC_WARN(fmt, ...)  pr_warn("USERPROC: " fmt, ##__VA_ARGS__)
 #define USERPROC_INFO(fmt, ...)  pr_info("USERPROC: " fmt, ##__VA_ARGS__)
-
-/* Compatibility: define PDE_DATA if kernel headers don't provide it */
-#ifndef PDE_DATA
-#define PDE_DATA(inode) ((inode)->i_private)
-#endif
 
 #define USERPROC_K_LOCK(sema)                                                                                          \
     do {                                                                                                               \
@@ -348,11 +349,11 @@ out:
 }
 
 static int ump_seq_open(struct inode *inode, struct file *file) {
-    UMP_PARAM_S *proc = (UMP_PARAM_S *)PDE_DATA(inode);
+    UMP_PARAM_S *proc = (UMP_PARAM_S *)USERPROC_PDE_DATA(inode);
     int res;
 
     if (NULL == proc) {
-        USERPROC_ERR("ump_seq_open: PDE_DATA(inode) is NULL\n");
+        USERPROC_ERR("ump_seq_open: pde_data(inode) is NULL\n");
         return -ENODEV;
     }
 
@@ -370,7 +371,7 @@ static int ump_seq_open(struct inode *inode, struct file *file) {
 }
 
 static int ump_seq_release(struct inode *inode, struct file *file) {
-    UMP_PARAM_S *proc = (UMP_PARAM_S *)PDE_DATA(inode);
+    UMP_PARAM_S *proc = (UMP_PARAM_S *)USERPROC_PDE_DATA(inode);
 
     if (proc)
         proc->busy = 0;
@@ -402,7 +403,7 @@ static ssize_t ump_seq_write(struct file *file, const char __user *buf, size_t s
     struct dentry *d = file->f_path.dentry;
     const char *entry_name = d->d_name.name;
     const char *parent_name = d->d_parent->d_name.name;
-    UMP_PARAM_S *proc = (UMP_PARAM_S *)PDE_DATA(d->d_inode);
+    UMP_PARAM_S *proc = (UMP_PARAM_S *)USERPROC_PDE_DATA(d->d_inode);
     UMP_ENTRY_S *pstEntry;
     int32_t ret;
 
